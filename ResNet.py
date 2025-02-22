@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.functional as F
+import torch.nn.functional as F
 
 class LeNet(nn.Module):
 
@@ -91,7 +91,6 @@ class ResBlock(nn.Module):
                 nn.BatchNorm2d(out_channels)
             ])
 
-
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
         out = self.bn2(self.covn2(out))
@@ -113,8 +112,8 @@ class ResBottleNeck(nn.Module):
 
         if in_channels != out_channels:
             self.shortcut = nn.Sequential([
-                nn.Conv2d(in_channels, out_channels, 1, stride = 2),
-                nn.BatchNorm2d(out_channels)
+                nn.Conv2d(in_channels, out_channels*4, 1, stride = 2),
+                nn.BatchNorm2d(out_channels*4)
             ])
 
     def forward(self, x):
@@ -152,9 +151,11 @@ class ResNet(nn.Module):
         self.covn4_x = self.make_layer(block, 256, num_blocks_list[2], 2)
         self.covn5_x = self.make_layer(block, 512, num_blocks_list[3], 2)
 
-        # navie softmax is not recommended since NLLLoss expects log to be computed between softmax and itself 
+        # Navie softmax is not recommended since NLLLoss expects log to be computed between softmax and itself 
         self.classifier = nn.Sequential(
-            nn.Linear(512 * 1 * 1, 1000),
+            nn.AdaptiveAvgPool2d(1),
+            nn.Flatten(),
+            nn.Linear(512 * 1 * 1 * increase_rate, 1000),
             nn.LogSoftmax(dim = 0) 
         )
 
@@ -169,10 +170,11 @@ class ResNet(nn.Module):
 
         # weight initialization kaiming normal
         for layer in layers:
-            if type(layer) == nn.Conv2d or type(layer) == nn.Linear:
+            if type(layer) == nn.Conv2d:
                 nn.init.kaiming_normal_(layer.weight, a=0, mode='fan_in', nonlinearity='leaky_relu', generator=None)
 
         return nn.Sequential(*layers)
+    
 
     def forward(self, x):
         x = F.relu(self.bn1(self.conv1(x))) 
@@ -181,7 +183,6 @@ class ResNet(nn.Module):
         x = self.covn3_x(x)
         x = self.covn4_x(x)
         x = self.covn5_x(x)
-        x = F.avg_pool2d(x, 7)
         x = self.classifier(x)
         return x
 
