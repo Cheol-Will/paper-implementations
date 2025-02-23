@@ -8,19 +8,19 @@ class ResBlock(nn.Module):
         super(ResBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_channels, out_channels, 3, stride = stride, padding = 1)
         self.bn1 = nn.BatchNorm2d(out_channels)
-        self.conv2 = nn.Conv2d(out_channels, out_channels, 3, stride = stride, padding = 1)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, 3, stride = 1, padding = 1)
         self.bn2 = nn.BatchNorm2d(out_channels)
         self.shortcut = nn.Sequential()
 
         if in_channels != out_channels:
-            self.shortcut = nn.Sequential([
+            self.shortcut = nn.Sequential(
                 nn.Conv2d(in_channels, out_channels, 1, stride = 2),
                 nn.BatchNorm2d(out_channels)
-            ])
+            )
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
-        out = self.bn2(self.covn2(out))
+        out = self.bn2(self.conv2(out))
         out += self.shortcut(x)
         out = F.relu(out)
         return out
@@ -30,23 +30,23 @@ class ResBottleNeck(nn.Module):
     def __init__(self, in_channels, out_channels, stride):
         super(ResBottleNeck, self).__init__()
         self.conv1 = nn.Conv2d(in_channels, out_channels, 1, stride = stride)
-        self.bn1 = nn.BatchNorm2d()
-        self.conv2 = nn.Conv2d(out_channels, out_channels, 3, stride = stride, padding = 1)
-        self.bn2 = nn.BatchNorm2d()
-        self.conv3 = nn.Conv2d(out_channels, out_channels * 4, 3, stride = stride)
-        self.bn3 = nn.BatchNorm2d()
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, 3, stride = 1, padding = 1)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.conv3 = nn.Conv2d(out_channels, out_channels * 4, 1, stride = 1)
+        self.bn3 = nn.BatchNorm2d(out_channels * 4)
         self.shortcut = nn.Sequential()
 
-        if in_channels != out_channels:
+        if stride != 1 or in_channels != out_channels * 4:
             self.shortcut = nn.Sequential(
-                nn.Conv2d(in_channels, out_channels*4, 1, stride = 2),
+                nn.Conv2d(in_channels, out_channels*4, 1, stride = stride),
                 nn.BatchNorm2d(out_channels*4)
             )
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
-        out = F.relu(self.bn2(self.conv2(x)))
-        out = self.bn3(self.conv3(x))
+        out = F.relu(self.bn2(self.conv2(out)))
+        out = self.bn3(self.conv3(out))
         out += self.shortcut(x)
         out = F.relu(out)
         return out
@@ -54,7 +54,7 @@ class ResBottleNeck(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, block, num_blocks_list, increase_rate = 1, in_channels = 64):
+    def __init__(self, block, num_blocks_list, increase_rate = 1):
         super(ResNet, self).__init__()
 
         """
@@ -70,7 +70,7 @@ class ResNet(nn.Module):
         """
 
         self.increase_rate = increase_rate
-        self.in_channels = in_channels
+        self.in_channels = 64
         self.conv1 = nn.Conv2d(3, 64, 7, stride = 2)
         self.bn1 = nn.BatchNorm2d(64)
         self.covn2_x = self.make_layer(block, 64, num_blocks_list[0], 1)
@@ -83,12 +83,12 @@ class ResNet(nn.Module):
             nn.AdaptiveAvgPool2d(1),
             nn.Flatten(),
             nn.Linear(512 * 1 * 1 * increase_rate, 1000),
-            nn.LogSoftmax(dim = 0) 
+            nn.LogSoftmax(dim = 1) 
         )
 
 
     def make_layer(self, block, out_channels, num_blocks, first_stride):
-        stride_list = [first_stride] + [1] * num_blocks
+        stride_list = [first_stride] + [1] * (num_blocks - 1)
         layers = []
         # create layers with given block (eg. ResBlock or ResBottleNeck)
         for stride in stride_list:
@@ -113,3 +113,9 @@ class ResNet(nn.Module):
         x = self.classifier(x)
         return x
 
+# model = ResNet(ResBottleNeck, [2, 2, 2, 2], increase_rate = 4)
+# model = ResNet(ResBlock, [2, 2, 2, 2], increase_rate = 1)
+
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# model.to(device)  
+# summary(model, input_size=(3, 32, 32), device=str(device))
