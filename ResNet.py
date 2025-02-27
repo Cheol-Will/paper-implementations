@@ -1,3 +1,4 @@
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -54,7 +55,7 @@ class ResBottleNeck(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, block, num_blocks_list, increase_rate = 1):
+    def __init__(self, block, num_blocks_list, increase_rate = 1 , dataset = "cifar-10"):
         super(ResNet, self).__init__()
 
         """
@@ -70,19 +71,37 @@ class ResNet(nn.Module):
         """
 
         self.increase_rate = increase_rate
-        self.in_channels = 64
-        self.conv1 = nn.Conv2d(3, 64, 7, stride = 2)
-        self.bn1 = nn.BatchNorm2d(64)
-        self.covn2_x = self.make_layer(block, 64, num_blocks_list[0], 1)
-        self.covn3_x = self.make_layer(block, 128, num_blocks_list[1], 2)
-        self.covn4_x = self.make_layer(block, 256, num_blocks_list[2], 2)
-        self.covn5_x = self.make_layer(block, 512, num_blocks_list[3], 2)
+        if dataset == "cifar-10":
+            self.conv1 = nn.Conv2d(3, 16, 3, stride = 1, padding = 1)
+            self.bn1 = nn.BatchNorm2d(16)
+            self.in_channels = 16
+            self.conv = nn.Sequential(
+                self.make_layer(block, 16, num_blocks_list[0], 1),
+                self.make_layer(block, 32, num_blocks_list[1], 2),
+                self.make_layer(block, 64, num_blocks_list[2], 2),
+            )
+            self.in_channels = 64
+            self.num_class = 10
+
+        elif data == "imagenet":
+            self.conv1 = nn.Conv2d(3, 64, 7, stride = 2)
+            self.bn1 = nn.BatchNorm2d(64)
+            self.in_channels = 64
+            self.conv = nn.Sequential(
+                nn.AvgPool2d(2),
+                self.make_layer(block, 64, num_blocks_list[0], 1),
+                self.make_layer(block, 128, num_blocks_list[2], 2),
+                self.make_layer(block, 256, num_blocks_list[3], 2),
+                self.make_layer(block, 512, num_blocks_list[4], 2),
+            )
+            self.in_channels = 512
+            self.num_class = 1000
 
         # Navie softmax is not recommended since NLLLoss expects log to be computed between softmax and itself 
         self.classifier = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
             nn.Flatten(),
-            nn.Linear(512 * 1 * 1 * increase_rate, 1000),
+            nn.Linear(self.in_channels * 1 * 1 * increase_rate, self.num_class),
             nn.LogSoftmax(dim = 1) 
         )
 
@@ -105,17 +124,6 @@ class ResNet(nn.Module):
 
     def forward(self, x):
         x = F.relu(self.bn1(self.conv1(x))) 
-        x = F.avg_pool2d(x, 2)
-        x = self.covn2_x(x)
-        x = self.covn3_x(x)
-        x = self.covn4_x(x)
-        x = self.covn5_x(x)
+        x = self.conv(x)
         x = self.classifier(x)
         return x
-
-# model = ResNet(ResBottleNeck, [2, 2, 2, 2], increase_rate = 4)
-# model = ResNet(ResBlock, [2, 2, 2, 2], increase_rate = 1)
-
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# model.to(device)  
-# summary(model, input_size=(3, 32, 32), device=str(device))

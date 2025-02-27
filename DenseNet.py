@@ -25,8 +25,14 @@ class DenseBlock(nn.Module):
                 nn.ReLU(),
                 nn.Conv2d(self.in_channels, self.growth_rate, 3, padding = 1),
             ))
+
             # next layer gets k more input feature maps
             self.in_channels += self.growth_rate
+
+        # weight initialization
+        for layer in layers:
+            if type(layer) == nn.Conv2d:
+                nn.init.kaiming_normal_(layer.weight, a=0, mode='fan_in', nonlinearity='leaky_relu', generator=None)
 
         return nn.Sequential(*layers)
 
@@ -61,6 +67,11 @@ class DenseBottleneck(nn.Module):
             # next layer gets k more input feature maps
             self.in_channels += self.growth_rate
 
+        # weight initialization
+        for layer in layers:
+            if type(layer) == nn.Conv2d:
+                nn.init.kaiming_normal_(layer.weight, a=0, mode='fan_in', nonlinearity='leaky_relu', generator=None)
+        
         return nn.Sequential(*layers)
 
     def forward(self, x):
@@ -71,19 +82,19 @@ class DenseBottleneck(nn.Module):
 
 class DenseNet(nn.Module):
 
-    def __init__(self, block, num_blocks_list, growth_rate = 32, in_channels = 64, compression_rate = 1):
+    def __init__(self, block, num_blocks_list, growth_rate = 32, in_channels = 16, compression_rate = 1):
         super(DenseNet, self).__init__()
         self.growth_rate = growth_rate
-        self.in_channels = in_channels
         self.compression_rate = compression_rate
+        self.in_channels = in_channels
 
-        self.conv1 = nn.Conv2d(in_channels, 2*growth_rate, 7, s = 2)
-        self.pool1 = nn.MaxPool2d(3, stride=2)
+        self.conv1 = nn.Conv2d(3, self.in_channels, 3, stride = 1, padding = 1)
+        # self.pool1 = nn.MaxPool2d(3, stride=2)
         self.dense = self.make_layer(block, num_blocks_list)
         self.clf = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
             nn.Flatten(),
-            nn.Linear(self.in_channels, 1000), 
+            nn.Linear(self.in_channels, 10), 
             nn.LogSoftmax(dim = 0) 
         )
     def make_layer(self, block, num_blocks_list):
@@ -109,7 +120,7 @@ class DenseNet(nn.Module):
 
     def forward(self, x):
         x = self.conv1(x)
-        x = self.poo1(x)
+        # x = self.pool1(x)
         x = self.dense(x)
         x = self.clf(x)
         return x
