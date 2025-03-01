@@ -5,9 +5,9 @@ from torchsummary import summary
 
 class StDepthBlock(nn.Module):
 
-    def __init__(self, in_channels, out_channels, stride,  survival_probabily, padding):
+    def __init__(self, in_channels, out_channels, stride,  survival_probability, padding):
         super(StDepthBlock, self).__init__()
-        self.survival_probabily = survival_probabily
+        self.survival_probability = survival_probability
         self.channel_pad = 0
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -33,10 +33,14 @@ class StDepthBlock(nn.Module):
         out = self.shortcut(x)
         if self.channel_pad > 0:
             out = F.pad(out, (0, 0, 0, 0, self.channel_pad, self.channel_pad))
-        if torch.bernoulli(self.survival_probabily) == 1:
-            a = self.res(x)
-            
-            out += self.res(x)
+        
+        if self.training:
+            # train mode
+            if torch.bernoulli(self.survival_probability) == 1:
+                out += self.res(x)
+        else:
+            # eval mode
+            out += self.res(x) * self.survival_probability
 
         return F.relu(out)
 
@@ -90,11 +94,8 @@ class StDepth(nn.Module):
         x = self.st1(x)
         x = self.st2(x)
         x = self.st3(x)
-        print(f"shape before clf: {x.shape}")
         x = self.clf(x)
         return x
-
-
 
 model = StDepth(StDepthBlock, [6, 6, 6])
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
