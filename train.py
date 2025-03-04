@@ -138,6 +138,8 @@ def main(args):
         model = StDepth(StDepthBlock, [18, 18, 18])
     elif args.model == "ConvMixer":
         model = ConvMixer(h=256, d=8, p=1, k=15, num_class=10)
+    elif args.model == "MLPMixer":
+        model = MLPMixer(128, 4, 256, 64, 32, 32, 10)
     else: 
         print("Check if the model name is correct")
         exit()
