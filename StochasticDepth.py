@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchsummary import summary
+import numpy as np
 
 class StDepthBlock(nn.Module):
 
@@ -36,23 +36,25 @@ class StDepthBlock(nn.Module):
         
         if self.training:
             # train mode
-            if torch.bernoulli(self.survival_probability) == 1:
-                out += self.res(x)
+            if np.random.binomial(1, self.survival_probability) == 1:
+                out = out + self.res(x)
         else:
             # eval mode
-            out += self.res(x) * self.survival_probability
+            out = out + self.res(x) * self.survival_probability
 
         return F.relu(out)
 
 class StDepth(nn.Module):
     """
         3 groups with 18 residual blocks each.
-        # of filters in each group are 16, 32, 64
+        Dimensions in each groups are 16, 32, 64
     """
 
     def __init__(self, block, num_blocks_list):
         super(StDepth, self).__init__()
         self.in_channels = 16
+        self.p_drop = 1
+        self.p_decrement = 0.5/sum(num_blocks_list) 
 
         self.conv1 = nn.Conv2d(3, 16, 7, stride = 1, padding = 3)
         self.bn1 = nn.BatchNorm2d(16)
@@ -61,10 +63,11 @@ class StDepth(nn.Module):
         self.st2 = self.make_layer(block, 32, num_blocks_list[1], 2, True)
         self.st3 = self.make_layer(block, 64, num_blocks_list[2], 2, True)
 
+
         self.clf = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),  
             nn.Flatten(),
-            nn.Linear(64 * 1 * 1, 1000),
+            nn.Linear(64 * 1 * 1, 10),
             nn.LogSoftmax(dim = 1)
         )
 
@@ -75,8 +78,9 @@ class StDepth(nn.Module):
         L = len(stride_list)
         for idx, stride in enumerate(stride_list):
             p = torch.tensor(1 - 0.5/L * idx)
-            layers.append(block(self.in_channels, out_channels, stride, p, padding))
+            layers.append(block(self.in_channels, out_channels, stride, self.p_drop, padding))
             self.in_channels = out_channels
+            self.p_drop -= self.p_decrement
 
         # weight initialization kaiming normal
         for layer in layers:
@@ -96,8 +100,3 @@ class StDepth(nn.Module):
         x = self.st3(x)
         x = self.clf(x)
         return x
-
-model = StDepth(StDepthBlock, [6, 6, 6])
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model.to(device)
-summary(model, input_size=(3, 256, 256), device=str(device))

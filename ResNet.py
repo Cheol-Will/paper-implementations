@@ -83,7 +83,7 @@ class ResNet(nn.Module):
             self.in_channels = 64
             self.num_class = 10
 
-        elif data == "imagenet":
+        elif dataset == "imagenet":
             self.conv1 = nn.Conv2d(3, 64, 7, stride = 2)
             self.bn1 = nn.BatchNorm2d(64)
             self.in_channels = 64
