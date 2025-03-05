@@ -55,7 +55,7 @@ class ResBottleNeck(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, block, num_blocks_list, increase_rate = 1 , dataset = "cifar-10"):
+    def __init__(self, block, channel_list, num_blocks_list, increase_rate = 1 , dataset = "cifar-10"):
         super(ResNet, self).__init__()
 
         """
@@ -69,35 +69,35 @@ class ResNet(nn.Module):
             ResBlock, increase_rate = 1, 
             ResBottleNeck, increase_rate = 4
         """
-
         self.increase_rate = increase_rate
         if dataset == "cifar-10":
             self.conv1 = nn.Conv2d(3, 16, 3, stride = 1, padding = 1)
             self.bn1 = nn.BatchNorm2d(16)
             self.in_channels = 16
             self.conv = nn.Sequential(
-                self.make_layer(block, 16, num_blocks_list[0], 1),
-                self.make_layer(block, 32, num_blocks_list[1], 2),
-                self.make_layer(block, 64, num_blocks_list[2], 2),
+                self.make_layer(block, channel_list[0], num_blocks_list[0], 1),
+                self.make_layer(block, channel_list[1], num_blocks_list[1], 2),
+                self.make_layer(block, channel_list[2], num_blocks_list[2], 2),
             )
             self.in_channels = 64
             self.num_class = 10
 
-        elif dataset == "imagenet":
+        elif data == "imagenet":
             self.conv1 = nn.Conv2d(3, 64, 7, stride = 2)
             self.bn1 = nn.BatchNorm2d(64)
             self.in_channels = 64
             self.conv = nn.Sequential(
                 nn.AvgPool2d(2),
-                self.make_layer(block, 64, num_blocks_list[0], 1),
-                self.make_layer(block, 128, num_blocks_list[2], 2),
-                self.make_layer(block, 256, num_blocks_list[3], 2),
-                self.make_layer(block, 512, num_blocks_list[4], 2),
+                self.make_layer(block, channel_list[0], num_blocks_list[0], 1),
+                self.make_layer(block, channel_list[1], num_blocks_list[1], 2),
+                self.make_layer(block, channel_list[2], num_blocks_list[2], 2),
+                self.make_layer(block, channel_list[3], num_blocks_list[3], 2),
             )
             self.in_channels = 512
             self.num_class = 1000
 
         # Navie softmax is not recommended since NLLLoss expects log to be computed between softmax and itself 
+        # Calculate Log-softmax infeature dimension
         self.classifier = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
             nn.Flatten(),

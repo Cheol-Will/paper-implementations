@@ -50,7 +50,7 @@ class StDepth(nn.Module):
         Dimensions in each groups are 16, 32, 64
     """
 
-    def __init__(self, block, num_blocks_list):
+    def __init__(self, block, channel_list, num_blocks_list):
         super(StDepth, self).__init__()
         self.in_channels = 16
         self.p_drop = 1
@@ -59,9 +59,9 @@ class StDepth(nn.Module):
         self.conv1 = nn.Conv2d(3, 16, 7, stride = 1, padding = 3)
         self.bn1 = nn.BatchNorm2d(16)
         self.relu1 = nn.ReLU()
-        self.st1 = self.make_layer(block, 16, num_blocks_list[0], 1, False)
-        self.st2 = self.make_layer(block, 32, num_blocks_list[1], 2, True)
-        self.st3 = self.make_layer(block, 64, num_blocks_list[2], 2, True)
+        self.st1 = self.make_layer(block, channel_list[0], num_blocks_list[0], 1, False)
+        self.st2 = self.make_layer(block, channel_list[1], num_blocks_list[1], 2, True)
+        self.st3 = self.make_layer(block, channel_list[2], num_blocks_list[2], 2, True)
 
 
         self.clf = nn.Sequential(
