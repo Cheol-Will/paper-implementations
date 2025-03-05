@@ -14,19 +14,19 @@ class VGGBlock(nn.Module):
 
 class VGG_34(nn.Module):
 
-    def __init__(self):
+    def __init__(self, channel_list, num_blocks_list, num_class = 10):
         super(VGG_34, self).__init__()
         self.in_channels = 64
         self.conv1 = nn.Conv2d(3, 64, 7, stride = 2)
         self.bn1 = nn.BatchNorm2d(64)
-        self.vggblock1 = self.make_layer(VGGBlock, 64, 6, 1)
-        self.vggblock2 = self.make_layer(VGGBlock, 128, 8, 2)
-        self.vggblock3 = self.make_layer(VGGBlock, 256, 12, 2)
-        self.vggblock4 = self.make_layer(VGGBlock, 512, 6, 2)
+        self.vggblock1 = self.make_layer(VGGBlock, channel_list[0], num_blocks_list[0], 1)
+        self.vggblock2 = self.make_layer(VGGBlock, channel_list[1], num_blocks_list[1], 2)
+        self.vggblock3 = self.make_layer(VGGBlock, channel_list[2], num_blocks_list[2], 2)
+        self.vggblock4 = self.make_layer(VGGBlock, channel_list[3], num_blocks_list[3], 2)
         self.classifier = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
             nn.Flatten(),
-            nn.Linear(512 * 1 * 1, 1000),
+            nn.Linear(num_blocks_list[3] * 1 * 1, num_class),
             nn.LogSoftmax(dim = 1) 
         )
 
@@ -48,7 +48,3 @@ class VGG_34(nn.Module):
         x = self.vggblock4(x)
         x = self.classifier(x)
         return x
-
-# model = VGG_34()
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# model.to(device)  
