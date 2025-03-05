@@ -4,20 +4,20 @@ import torch.nn.functional as F
 
 class DenseBlock(nn.Module):
 
-    def __init__(self, in_channels, k, num):
+    def __init__(self, in_channels, k, num_blocks):
         """
             k: growth rate
-            num: the number of layers in block (l)
+            num_blocks: the number of layers in block
         """
         super(DenseBlock, self).__init__()
         self.in_channels = in_channels
         self.growth_rate = k
-        self.num = num
+        self.num_blocks = num_blocks
         self.block = self.make_block()
 
     def make_block(self):
         layers = []
-        for i in range(self.num):
+        for _ in range(self.num_blocks):
         
             # BatchNorm - ReLU - 3x3Conv 
             layers.append(nn.Sequential(
@@ -47,13 +47,13 @@ class DenseBottleneck(nn.Module):
         super(DenseBottleneck, self).__init__()
         self.in_channels = in_channels
         self.growth_rate = k
-        self.num = num
+        self.num_blocks = num_blocks
         self.block = self.make_block()
         pass
 
     def make_block(self):
         layers = []
-        for i in range(self.num):
+        for _ in range(self.num_blocks):
 
             # BatchNorm - ReLU - 1x1Conv(4k) - BatchNorm - ReLU - 3x3Conv(k) 
             layers.append(nn.Sequential( 
@@ -95,12 +95,12 @@ class DenseNet(nn.Module):
             nn.AdaptiveAvgPool2d(1),
             nn.Flatten(),
             nn.Linear(self.in_channels, 10), 
-            nn.LogSoftmax(dim = 0) 
+            nn.LogSoftmax(dim = 1) 
         )
     def make_layer(self, block, num_blocks_list):
         layers = []
-        for idx, num in enumerate(num_blocks_list):
-            b = block(self.in_channels, self.growth_rate, num)
+        for idx, num_blocks in enumerate(num_blocks_list):
+            b = block(self.in_channels, self.growth_rate, num_blocks)
             layers.append(b)
             self.in_channels = b.in_channels
             
@@ -124,4 +124,3 @@ class DenseNet(nn.Module):
         x = self.dense(x)
         x = self.clf(x)
         return x
-
