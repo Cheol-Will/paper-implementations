@@ -95,7 +95,7 @@ class DenseNet(nn.Module):
             nn.AdaptiveAvgPool2d(1),
             nn.Flatten(),
             nn.Linear(self.in_channels, 10), 
-            nn.LogSoftmax(dim = 1) 
+            nn.LogSoftmax(dim = 1),
         )
     def make_layer(self, block, num_blocks_list):
         layers = []
