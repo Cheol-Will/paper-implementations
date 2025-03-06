@@ -1,6 +1,7 @@
 import argparse, os
 
 import torch
+import torch.nn as nn
 import torchvision
 import torchvision.transforms as transforms
 from torchvision.transforms import v2
@@ -16,6 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 torch.manual_seed(42)
+NUM_CLASSES = 10
 CUR_DIR = os.getcwd()
 
 parser = argparse.ArgumentParser()
@@ -37,16 +39,23 @@ def imshow(img, filename="output.png"):
     plt.savefig(path, bbox_inches="tight")  
     print(f"Image saved as {filename} in {args.output_dir}")  
 
-def train_loop(dataloader, model, loss_fn, optimizer, device, batch_size):
+def train_loop(dataloader, model, loss_fn, optimizer, scheduler, device, batch_size):
+    cutmix = v2.CutMix(num_classes=NUM_CLASSES)
+    mixup = v2.MixUp(num_classes=NUM_CLASSES)
+    cutmix_or_mixup = v2.RandomChoice([cutmix, mixup])
+
     size = len(dataloader.dataset)
     running_loss = 0.
     num_batches = len(dataloader)
     model.train()
     for batch, (X, y) in enumerate(dataloader):
+        X, y = cutmix_or_mixup(X, y)
         X, y = X.to(device), y.to(device)
+
         pred = model(X)
         loss = loss_fn(pred, y)
         loss.backward()
+        nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
         optimizer.zero_grad()
 
@@ -55,6 +64,7 @@ def train_loop(dataloader, model, loss_fn, optimizer, device, batch_size):
         if batch % 100 == 99:
             avg_loss, current = running_loss / (batch + 1), batch * batch_size + len(X)
             print(f"loss: {avg_loss:>7f}  [{current:>5d}/{size:>5d}]")
+        scheduler.step()
 
     return running_loss/num_batches
 
@@ -83,7 +93,7 @@ def train_epochs(args, model, trainloader, testloader, loss_fn, device, optimize
         print(f"Epoch {epoch+1}\n-------------------------------")
 
         model.train(True)
-        avg_loss = train_loop(trainloader, model, loss_fn, optimizer, device, args.batch_size)
+        avg_loss = train_loop(trainloader, model, loss_fn, optimizer, scheduler, device, args.batch_size)
 
         model.eval()
         correct, test_loss = test_loop(testloader, model, loss_fn, device)
@@ -104,19 +114,21 @@ def train_epochs(args, model, trainloader, testloader, loss_fn, device, optimize
         writer.add_scalar(f"Acc/{args.model}", correct, n_iter)
         writer.add_scalar(f"Loss/{args.model}", test_loss, n_iter)
 
-        scheduler.step()
-
-
     writer.flush()
     writer.close()
 
 def build_loader(args):
-    transform = transforms.Compose(
-        [
-            # Need to add shifting
-            v2.RandomHorizontalFlip(p=0.5),
-            v2.ToTensor(),
-            v2.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+    # Aug: RandAug, mixup, CutMix, random erasing, gradient clipping, timm
+    transform = transforms.Compose([
+        # Need to add shifting
+        v2.RandomHorizontalFlip(p=0.5),
+        v2.RandAugment(),
+        v2.ToTensor(),
+        # v2.ToImage(),
+        # v2.ToDtype(torch.float32, scale = True),
+        v2.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        v2.RandomErasing(),
+    ])
 
     batch_size = args.batch_size
     trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
@@ -145,22 +157,22 @@ def main(args):
         model = DenseNet(DenseBlock, num_blocks_list = [13, 13, 13], growth_rate = 12, in_channels = 16)
     elif args.model == "StDepth":
         model = StDepth(StDepthBlock, channel_list = [16, 32, 64], num_blocks_list = [18, 18, 18])
-    elif args.model == "ConvMixer":
-        model = ConvMixer(h=256, d=8, p=1, k=15, num_class=10)
     elif args.model == "MLPMixer":
-        model = MLPMixer(c = 128, p = 4, c_hidden = 256, s_hidden = 64, h = 32, w = 32, num_class = 10)
+        model = MLPMixer(c = 128, p = 4, c_hidden = 256, s_hidden = 64, h = 32, w = 32, num_class = NUM_CLASSES)
+    elif args.model == "ConvMixer":
+        model = ConvMixer(h=256, d=8, p=1, k=15, num_class=NUM_CLASSES)
     else: 
         print("Check if the model name is correct")
-        exit()
+        return
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)  
 
     loss_fn = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9, nesterov = True, weight_decay = 0.0001)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[150, 225], gamma=0.1)
+    optimizer = torch.optim.AdamW(model.parameters(), lr = 0.001)
+    scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=0.0001, max_lr=0.001, cycle_momentum = False)
 
-    epochs = 300
+    epochs = 100
     train_epochs(args, model, trainloader, testloader, loss_fn, device, optimizer, scheduler, epochs)
     torch.save(model.state_dict(), os.path.join(args.output_dir, f"output/{args.model}_weights.pth"))
 
