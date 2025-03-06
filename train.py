@@ -12,6 +12,7 @@ from PreActResNet import PreActResNet, PreActResBlock
 from StochasticDepth import StDepth, StDepthBlock
 from DenseNet import DenseNet, DenseBlock
 from ConvMixer import ConvMixer, ConvMixerBlock
+from MLPMixer import MLPMixer, MixerBlock
 
 import numpy as np
 import matplotlib.pyplot as plt
