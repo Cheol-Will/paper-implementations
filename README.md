@@ -14,12 +14,12 @@
 - weight decay of 10−4 and a Nesterov momentum of 0.9 
 - augmentation: mirroring/shifting
 
-| Model             | Accuracy | Avg Loss  | Params |
-|-------------------|----------|-----------|--------|
-| ResNet            | 84.4%    | 1.005641  | 1.7M   |
-| PreActResNet      | 85.7%    | 0.768755  | 1.7M   |
-| DenseNet          | 89.9%    | 0.540436  | -      |
-| StochasticDepth   | -        | -         | -      |
-| FractalNet        | -        | -         | -      |
-| MLP-Mixer         | -        | -         | -      |
-| ConvMixer         | -        | -         | 1M     |
+| Model             | Accuracy | Params |
+|-------------------|----------|--------|
+| ResNet            | 87.8%    | 1.7M   |
+| PreActResNet      | 86.4%    | 1.7M   |
+| DenseNet          | 89.9%    | -      |
+| StochasticDepth   | -        | -      |
+| FractalNet        | -        | -      |
+| MLP-Mixer         | -        | -      |
+| ConvMixer         | 89.6%    | 1M     |
