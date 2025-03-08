@@ -20,7 +20,7 @@ class Encoder(nn.Module):
         out = self.ln1(x)
         # attn_output, attn_output_weights = self.multi_head_attention(out, out, out)
         out = x + self.multi_head_attention(out, out, out)[0]
-        out = self.mlp(self.ln2(out))
+        out = out + self.mlp(self.ln2(out))
 
         return out
 
