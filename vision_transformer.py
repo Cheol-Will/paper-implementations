@@ -20,9 +20,9 @@ class Encoder(nn.Module):
         out = self.ln1(x)
         # attn_output, attn_output_weights = self.multi_head_attention(out, out, out)
         out = x + self.multi_head_attention(out, out, out)[0]
-        x = self.mlp(self.ln2(x))
+        out = self.mlp(self.ln2(out))
 
-        return x
+        return out
 
 class VisionTransformer(nn.Module):
     def __init__(self, image_size, hidden_dim, num_heads, mlp_dim, patch_size, depth, num_classes):
@@ -30,7 +30,7 @@ class VisionTransformer(nn.Module):
         height, width = image_size
 
         self.patch_embedding = nn.Conv2d(3, hidden_dim, patch_size, patch_size)
-        self.pos_embedding = nn.init.normal_(nn.Parameter(torch.empty(1, height//patch_size * width//patch_size, hidden_dim)))
+        self.pos_embedding = nn.Parameter(nn.init.normal_(torch.empty(1, height//patch_size * width//patch_size, hidden_dim)))
         self.transformer_blocks = nn.Sequential(
             *[Encoder(hidden_dim, num_heads, mlp_dim) for _ in range(depth)]
         )
