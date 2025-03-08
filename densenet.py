@@ -4,14 +4,14 @@ import torch.nn.functional as F
 
 class DenseBlock(nn.Module):
 
-    def __init__(self, in_channels, k, num_blocks):
+    def __init__(self, in_channels, growth_rate, num_blocks):
         """
             k: growth rate
             num_blocks: the number of layers in block
         """
         super(DenseBlock, self).__init__()
         self.in_channels = in_channels
-        self.growth_rate = k
+        self.growth_rate = growth_rate
         self.num_blocks = num_blocks
         self.block = self.make_block()
 
@@ -23,7 +23,7 @@ class DenseBlock(nn.Module):
             layers.append(nn.Sequential(
                 nn.BatchNorm2d(self.in_channels),
                 nn.ReLU(),
-                nn.Conv2d(self.in_channels, self.growth_rate, 3, padding = 1),
+                nn.Conv2d(self.in_channels, self.growth_rate, 3, padding=1),
             ))
 
             # next layer gets k more input feature maps
@@ -32,21 +32,21 @@ class DenseBlock(nn.Module):
         # weight initialization
         for layer in layers:
             if type(layer) == nn.Conv2d:
-                nn.init.kaiming_normal_(layer.weight, a=0, mode='fan_in', nonlinearity='leaky_relu', generator=None)
+                nn.init.kaiming_normal_(layer.weight)
 
         return nn.Sequential(*layers)
 
     def forward(self, x):
         for layer in self.block:
-            x = torch.concat([x, layer(x)], dim = 1)
+            x = torch.concat([x, layer(x)], dim=1)
 
         return x
 
 class DenseBottleneck(nn.Module):
-    def __init__(self, in_channels, k, num):
+    def __init__(self, in_channels, growth_rate, num_blocks):
         super(DenseBottleneck, self).__init__()
         self.in_channels = in_channels
-        self.growth_rate = k
+        self.growth_rate = growth_rate
         self.num_blocks = num_blocks
         self.block = self.make_block()
         pass
@@ -70,7 +70,7 @@ class DenseBottleneck(nn.Module):
         # weight initialization
         for layer in layers:
             if type(layer) == nn.Conv2d:
-                nn.init.kaiming_normal_(layer.weight, a=0, mode='fan_in', nonlinearity='leaky_relu', generator=None)
+                nn.init.kaiming_normal_(layer.weight)
         
         return nn.Sequential(*layers)
 
@@ -82,20 +82,19 @@ class DenseBottleneck(nn.Module):
 
 class DenseNet(nn.Module):
 
-    def __init__(self, block, num_blocks_list, growth_rate = 32, in_channels = 16, compression_rate = 1):
+    def __init__(self, block, num_blocks_list, growth_rate, in_channels, compression_rate, num_classes):
         super(DenseNet, self).__init__()
         self.growth_rate = growth_rate
         self.compression_rate = compression_rate
         self.in_channels = in_channels
 
-        self.conv1 = nn.Conv2d(3, self.in_channels, 3, stride = 1, padding = 1)
+        self.conv1 = nn.Conv2d(3, self.in_channels, 3, padding=1)
         # self.pool1 = nn.MaxPool2d(3, stride=2)
         self.dense = self.make_layer(block, num_blocks_list)
         self.clf = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
             nn.Flatten(),
-            nn.Linear(self.in_channels, 10), 
-            nn.LogSoftmax(dim = 1),
+            nn.Linear(self.in_channels, num_classes), 
         )
     def make_layer(self, block, num_blocks_list):
         layers = []
@@ -110,7 +109,7 @@ class DenseNet(nn.Module):
             # transition layer for down sampling and half feature map size
             layers.append(nn.Sequential(
                 nn.Conv2d(self.in_channels, self.in_channels * self.compression_rate, 1),
-                nn.AvgPool2d(2, stride = 2)
+                nn.AvgPool2d(2, stride=2)
             ))
             # modify in_channels for next blocks
             self.in_channels = b.in_channels * self.compression_rate

@@ -6,7 +6,7 @@ class VGGBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, stride):
         super(VGGBlock, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels, out_channels, 3, stride = stride, padding = 1)
+        self.conv1 = nn.Conv2d(in_channels, out_channels, 3, stride=stride, padding=1)
         self.bn1 = nn.BatchNorm2d(out_channels)
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
@@ -14,10 +14,10 @@ class VGGBlock(nn.Module):
 
 class VGG_34(nn.Module):
 
-    def __init__(self, channel_list, num_blocks_list, num_class = 10):
+    def __init__(self, channel_list, num_blocks_list, num_classes):
         super(VGG_34, self).__init__()
         self.in_channels = 64
-        self.conv1 = nn.Conv2d(3, 64, 7, stride = 2)
+        self.conv1 = nn.Conv2d(3, 64, 7, stride=2)
         self.bn1 = nn.BatchNorm2d(64)
         self.vggblock1 = self.make_layer(VGGBlock, channel_list[0], num_blocks_list[0], 1)
         self.vggblock2 = self.make_layer(VGGBlock, channel_list[1], num_blocks_list[1], 2)
@@ -26,8 +26,7 @@ class VGG_34(nn.Module):
         self.classifier = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
             nn.Flatten(),
-            nn.Linear(num_blocks_list[3] * 1 * 1, num_class),
-            nn.LogSoftmax(dim = 1) 
+            nn.Linear(num_blocks_list[3] * 1 * 1, num_classes),
         )
 
     def make_layer(self, block, out_channels, num_blocks, first_stride):
