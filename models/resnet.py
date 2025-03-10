@@ -96,7 +96,7 @@ class ResNet(nn.Module):
             self.in_channels = 512
             self.num_classes = 1000
 
-        self.classifier = nn.Sequential(
+        self.clf = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
             nn.Flatten(),
             nn.Linear(self.in_channels * 1 * 1 * increase_rate, self.num_classes),
@@ -122,5 +122,5 @@ class ResNet(nn.Module):
     def forward(self, x):
         x = F.relu(self.bn1(self.conv1(x))) 
         x = self.conv(x)
-        x = self.classifier(x)
+        x = self.clf(x)
         return x
