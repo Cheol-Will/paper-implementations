@@ -88,7 +88,7 @@ class PreActResNet(nn.Module):
         # Last BN and ReLU is added bleow since layers in block are re-arranged
         self.bn = nn.BatchNorm2d(self.in_channels * increase_rate)
         self.relu = nn.ReLU()
-        self.classifier = nn.Sequential(
+        self.clf = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
             nn.Flatten(),
             nn.Linear(self.in_channels * 1 * 1 * increase_rate, self.num_classes),
@@ -114,5 +114,5 @@ class PreActResNet(nn.Module):
         x = self.conv1(x)
         x = self.conv(x)
         x = self.relu(self.bn(x))
-        x = self.classifier(x)
+        x = self.clf(x)
         return x
