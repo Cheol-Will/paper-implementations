@@ -55,14 +55,15 @@ def build_model(args):
         model = DenseNet(DenseBlock, num_blocks_list=[13, 13, 13], growth_rate=12, in_channels=16, compression_rate=1, num_classes=10)
     elif args.model == "StDepth":
         model = StDepth(StDepthBlock, channel_list=[16, 32, 64], num_blocks_list=[18, 18, 18])
+    elif args.model == "FractalNet":
+        model = FractalNet(col=3, channel_list=[64, 128, 256, 512, 512])
     elif args.model == "MLPMixer":
         model = MLPMixer(hidden_dim=256, patch_size=4, c_hidden=1024, s_hidden=128, depth=8, height=32, width=32, num_classes=10)
     elif args.model == "ConvMixer":
         model = ConvMixer(hidden_dim=256, depth=16, patch_size=1, kernel_size=8, num_classes=10)
     elif args.model == "ViT":
         model = VisionTransformer(image_size=(32, 32), hidden_dim=128, num_heads=4, mlp_dim=512, patch_size=4, depth=12, num_classes=10)
-    elif args.model == "FractalNet":
-        model = FractalNet(col=3, channel_list=[64, 128, 256, 512, 512])
+
     else: 
         print("Check if the model name is correct")
         return  
@@ -70,8 +71,10 @@ def build_model(args):
     return model
 
 def train_loop(dataloader, model, loss_fn, optimizer, device, batch_size):
-    cutmix = v2.CutMix(num_classes=10) # modify to get output shape from model's output head 
-    mixup = v2.MixUp(num_classes=10)
+    num_classes = model.clf[-1].out_features
+
+    cutmix = v2.CutMix(num_classes=num_classes) # modify to get output shape from model's output head 
+    mixup = v2.MixUp(num_classes=num_classes)
     cutmix_or_mixup = v2.RandomChoice([cutmix, mixup])
 
     size = len(dataloader.dataset)
@@ -125,6 +128,7 @@ def train_epochs(args, model, trainloader, testloader, loss_fn, optimizer, sched
     # images, labels = images.to(device), labels.to(device)
     # writer.add_graph(model, images)
 
+    # restore checkpoint to keep training
     if args.checkpoint_start_from is not None:
         model_path = os.path.join(args.output_dir, args.checkpoint_start_from)
         print(f"\nRestore model from {model_path}")
@@ -170,8 +174,11 @@ def train_epochs(args, model, trainloader, testloader, loss_fn, optimizer, sched
         n_iter = epoch * len(trainloader)
         writer.add_scalar(f"Acc", correct, n_iter)
         writer.add_scalar(f"Loss", test_loss, n_iter)
+        writer.add_scalar(f"Train_Loss", avg_loss, n_iter)
     
-    writer.flush()
+        if epoch % 10 == 9:
+            writer.flush()
+
     writer.close()
 
 def main(args):
@@ -185,9 +192,8 @@ def main(args):
 
     loss_fn = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.99), eps=1e-08, weight_decay=1e-4)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100, eta_min=0)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=0)
     
-    # restore checkpoint to keep training
     train_epochs(args, model, trainloader, testloader, loss_fn, optimizer, scheduler, device)
     
     checkpoint = {
