@@ -34,7 +34,7 @@ class VisionTransformer(nn.Module):
         self.transformer_blocks = nn.Sequential(
             *[Encoder(hidden_dim, num_heads, mlp_dim) for _ in range(depth)]
         )
-        self.clf = nn.Linear(hidden_dim, 10)
+        self.clf = nn.Linear(hidden_dim, num_classes)
 
     def forward(self, x):
         x = self.patch_embedding(x)

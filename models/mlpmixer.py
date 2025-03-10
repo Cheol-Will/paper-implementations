@@ -3,19 +3,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class MixerBlock(nn.Module):
-    def __init__(self, c, s, c_hidden, s_hidden):
+    def __init__(self, hidden_dim, seq_length, c_hidden, s_hidden):
         super(MixerBlock, self).__init__()
         self.token = nn.Sequential(
-            nn.LayerNorm(s),
-            nn.Linear(s, c_hidden),
+            nn.LayerNorm(seq_length),
+            nn.Linear(seq_length, c_hidden),
             nn.GELU(),
-            nn.Linear(c_hidden, s)
+            nn.Linear(c_hidden, seq_length)
         )
         self.channel = nn.Sequential(
-            nn.LayerNorm(c),
-            nn.Linear(c, s_hidden),
+            nn.LayerNorm(hidden_dim),
+            nn.Linear(hidden_dim, s_hidden),
             nn.GELU(),
-            nn.Linear(s_hidden, c)
+            nn.Linear(s_hidden, hidden_dim)
         )
 
     def forward(self, x):
