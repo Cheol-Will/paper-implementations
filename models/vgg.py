@@ -23,7 +23,7 @@ class VGG_34(nn.Module):
         self.vggblock2 = self.make_layer(VGGBlock, channel_list[1], num_blocks_list[1], 2)
         self.vggblock3 = self.make_layer(VGGBlock, channel_list[2], num_blocks_list[2], 2)
         self.vggblock4 = self.make_layer(VGGBlock, channel_list[3], num_blocks_list[3], 2)
-        self.classifier = nn.Sequential(
+        self.clf = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
             nn.Flatten(),
             nn.Linear(num_blocks_list[3] * 1 * 1, num_classes),
@@ -45,5 +45,5 @@ class VGG_34(nn.Module):
         x = self.vggblock2(x)
         x = self.vggblock3(x)
         x = self.vggblock4(x)
-        x = self.classifier(x)
+        x = self.clf(x)
         return x
