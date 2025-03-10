@@ -26,10 +26,10 @@ class ConvMixer(nn.Module):
     def __init__(self, hidden_dim, depth, patch_size, kernel_size, num_classes):
         super(ConvMixer, self).__init__()
         """
-            h: dimension of embedding
-            d: total network depth
-            p: the resolution of patch (eg. p x p)
-            k: kernel size of depthwise convolution
+            hidden_dim: dimension of embedding
+            depth: total network depth
+            patch_size: the resolution of patch (eg. p x p)
+            kernel_size: kernel size of depthwise convolution
         """
 
         self.hidden_dim = hidden_dim
@@ -46,7 +46,7 @@ class ConvMixer(nn.Module):
         
         # ConvMixer Block Groups 
         self.convmixer = nn.Sequential(
-            *[ConvMixerBlock(hidden_dim, kernel_size) for _ in range(d)]
+            *[ConvMixerBlock(hidden_dim, kernel_size) for _ in range(depth)]
         )
         
         # Classification Layer
