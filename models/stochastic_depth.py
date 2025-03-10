@@ -50,11 +50,11 @@ class StDepth(nn.Module):
         Dimensions in each groups are 16, 32, 64
     """
 
-    def __init__(self, block, channel_list, num_blocks_list):
+    def __init__(self, block, channel_list, num_blocks_list, num_classes=10):
         super(StDepth, self).__init__()
         self.in_channels = 16
         self.p_drop = 1
-        self.p_decrement = 0.5/sum(num_blocks_list) 
+        self.p_decrement = 0.5/sum(num_blocks_list) # linear decaying probability
 
         self.conv1 = nn.Conv2d(3, 16, 7, stride=1, padding=3)
         self.bn1 = nn.BatchNorm2d(16)
@@ -66,7 +66,7 @@ class StDepth(nn.Module):
         self.clf = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),  
             nn.Flatten(),
-            nn.Linear(64 * 1 * 1, 10),
+            nn.Linear(64 * 1 * 1, num_classes),
         )
 
     def make_layer(self, block, out_channels, num_blocks, first_stride, padding):
