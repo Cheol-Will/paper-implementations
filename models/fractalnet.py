@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as f
-import numpy as np
 
 class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, padding):
@@ -37,9 +36,10 @@ class FractalBlock(nn.Module):
             self.conv3 = FractalBlock(col-1, out_channels, out_channels, join=False)
 
     def local_drop(self, X, p_drop):
-        idx = np.random.binomial(1, 1-p_drop, X.shape[1]) == 1
+        p_alive = torch.full((X.shape[1],), 1 - p_drop, dtype=X.dtype, device=X.device)
+        idx = torch.bernoulli(p_alive).bool()
         if not any(idx):
-            idx[0] = True # at least one path is available
+            idx[0] = True
         X = X[:, idx, :, :, :]
 
         if len(X.shape) == 4:
@@ -55,8 +55,7 @@ class FractalBlock(nn.Module):
         if self.join:
             batch_size, concat_channels, height, width = out.shape
             out = out.view(batch_size, concat_channels//self.out_channels, self.out_channels, height, width)
-
-            out = self.local_drop(out, p_drop=0.15)
+            out = self.local_drop(out, p_drop=0.15) 
             out = out.mean(dim=1) # avg join over groups
 
         return out
@@ -79,9 +78,10 @@ class FractalNet(nn.Module):
             layers.append(FractalBlock(col, in_channels, out_channels))
             layers.append(nn.MaxPool2d(2, 2))
             in_channels = out_channels
-            
+
             if i < len(channel_list)-1:
-                layers.append(ConvBlock(in_channels, channel_list[i+1], kernel_size=3, padding=1))
+                # transition layer
+                layers.append(ConvBlock(in_channels, channel_list[i+1], kernel_size=1, padding=1))
                 in_channels = channel_list[i+1]
 
         return nn.Sequential(*layers)
