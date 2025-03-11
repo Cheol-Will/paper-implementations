@@ -17,6 +17,9 @@ To resume training from a specific checkpoint, use:
 - Adam optimizer with Cosine Annealing Learning Scheduler 
 - augmentation: Horizontal Flip, RandAug, Mixup, CutMix, random erasing
 
+
+## Training Result
+
 | Model             | Accuracy | Params | GFLOPs | Training Time(hours) | 
 |-------------------|----------|--------|--------|----------------------|
 | ResNet            | 86.66%   | 1.7M   | 0.26   | 2.4                  |
