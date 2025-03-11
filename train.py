@@ -14,7 +14,7 @@ from models.resnet import ResNet, ResBlock
 from models.preactresnet import PreActResNet, PreActResBlock
 from models.stochastic_depth import StDepth, StDepthBlock
 from models.mlpmixer import MLPMixer, MixerBlock
-from models.vision_transformer import VisionTransformer, Encoder
+from models.vision_transformer import VisionTransformer, VisionTransformerBlock
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -70,6 +70,7 @@ def build_model(args):
     return model
 
 def train_loop(dataloader, model, loss_fn, optimizer, device, batch_size):
+    # extract num_classes from nn.Linear()
     num_classes = model.clf[-1].out_features
 
     cutmix = v2.CutMix(num_classes=num_classes) # modify to get output shape from model's output head 
