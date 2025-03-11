@@ -4,9 +4,9 @@ import torch.nn.functional as F
 
 from torchsummary import summary
 
-class Encoder(nn.Module):
+class VisionTransformerBlock(nn.Module):
     def __init__(self, hidden_dim, num_heads, mlp_dim):
-        super(Encoder, self).__init__()
+        super(VisionTransformerBlock, self).__init__()
         self.ln1 = nn.LayerNorm(hidden_dim)
         self.multi_head_attention = nn.MultiheadAttention(hidden_dim, num_heads, batch_first=True) # input shape: (batch_size, seq_length, hidden_dim)
         self.ln2 = nn.LayerNorm(hidden_dim)
@@ -30,9 +30,14 @@ class VisionTransformer(nn.Module):
         height, width = image_size
 
         self.patch_embedding = nn.Conv2d(3, hidden_dim, patch_size, patch_size)
-        self.pos_embedding = nn.Parameter(nn.init.normal_(torch.empty(1, height//patch_size * width//patch_size, hidden_dim)))
+        self.cls_token = nn.Parameter(torch.randn(1, 1, hidden_dim))
+        
+        
+        # for cls token add 1 to seq_length
+        self.pos_embedding = nn.Parameter(nn.init.normal_(torch.empty(1, height//patch_size * width//patch_size + 1, hidden_dim)))
+        # self.pos_embedding = nn.Parameter(nn.init.normal_(torch.empty(1, height//patch_size * width//patch_size, hidden_dim)))
         self.transformer_blocks = nn.Sequential(
-            *[Encoder(hidden_dim, num_heads, mlp_dim) for _ in range(depth)]
+            *[VisionTransformerBlock(hidden_dim, num_heads, mlp_dim) for _ in range(depth)]
         )
         self.clf = nn.Sequential(
             nn.Linear(hidden_dim, num_classes)
@@ -41,10 +46,19 @@ class VisionTransformer(nn.Module):
     def forward(self, x):
         x = self.patch_embedding(x)
         batch_size, hidden_dim, height, width = x.shape
-        x = x.reshape(batch_size, height * width, hidden_dim)
+        x = x.reshape(batch_size, hidden_dim, height * width)
+        x = x.transpose(1, 2) # transpose so that shape becomes (batch_size, seq_length, dim_hidden)
+        
+        # concat patch_embedding with class token
+        cls_token_batched = self.cls_token.expand(batch_size, -1, -1)
+        x = torch.concat([cls_token_batched, x], dim=1)
         x += self.pos_embedding
+
+        # transformer blocks
         x = self.transformer_blocks(x)
-        x = x.mean(axis = 1)
+
+        # use only class token for prediction
+        x = x[:, 0, :]
         x = self.clf(x)
 
         return x
