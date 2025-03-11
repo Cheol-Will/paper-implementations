@@ -54,7 +54,7 @@ class StDepth(nn.Module):
         super(StDepth, self).__init__()
         self.in_channels = 16
         self.p_drop = 1
-        self.p_decrement = 0.5/sum(num_blocks_list) # linear decaying probability
+        self.p_decrement = 0.5/sum(num_blocks_list) 
 
         self.conv1 = nn.Conv2d(3, 16, 7, stride=1, padding=3)
         self.bn1 = nn.BatchNorm2d(16)

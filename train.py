@@ -54,7 +54,7 @@ def build_model(args):
     elif args.model == "DenseNet":
         model = DenseNet(DenseBlock, num_blocks_list=[13, 13, 13], growth_rate=12, in_channels=16, compression_rate=1, num_classes=10)
     elif args.model == "StDepth":
-        model = StDepth(StDepthBlock, channel_list=[16, 32, 64], num_blocks_list=[18, 18, 18])
+        model = StDepth(StDepthBlock, channel_list=[16, 32, 64], num_blocks_list=[18, 18, 18], num_classes=10)
     elif args.model == "FractalNet":
         model = FractalNet(col=3, channel_list=[64, 128, 256, 512, 512])
     elif args.model == "MLPMixer":
@@ -63,7 +63,6 @@ def build_model(args):
         model = ConvMixer(hidden_dim=256, depth=16, patch_size=1, kernel_size=8, num_classes=10)
     elif args.model == "ViT":
         model = VisionTransformer(image_size=(32, 32), hidden_dim=128, num_heads=4, mlp_dim=512, patch_size=4, depth=12, num_classes=10)
-
     else: 
         print("Check if the model name is correct")
         return  
@@ -152,8 +151,8 @@ def train_epochs(args, model, trainloader, testloader, loss_fn, optimizer, sched
         model.eval()
         correct, test_loss = test_loop(testloader, model, loss_fn, device)
 
-        print(f'Train Error: \n Avg loss: {avg_loss:>8f}')
-        print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
+        print(f'Train : \n Avg loss: {avg_loss:>8f}')
+        print(f"Test : \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
 
         # Track best performance and save the model
         if test_loss < min_test_loss:

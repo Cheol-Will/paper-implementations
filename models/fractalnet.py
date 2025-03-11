@@ -62,13 +62,13 @@ class FractalBlock(nn.Module):
 
 class FractalNet(nn.Module):
 
-    def __init__(self, col, channel_list):
+    def __init__(self, col, channel_list, num_classes=10):
         super(FractalNet, self).__init__()
         self.fractal_blocks = self._make_layer(col, channel_list)
         self.clf = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
             nn.Flatten(),
-            nn.Linear(channel_list[4], 10)
+            nn.Linear(channel_list[4], num_classes)
         )
 
     def _make_layer(self, col, channel_list):
