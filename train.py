@@ -43,10 +43,7 @@ def build_loader(batch_size):
 
 
 def build_model(args):
-    """
-        Build specified model
-        If checkpoint exists, start from checkpoint.
-    """
+
     if args.model == "ResNet":         
         model = ResNet(ResBlock, channel_list=[16, 32, 64], num_blocks_list=[18, 18, 18], dataset="cifar-10")
     elif args.model == "PreActResNet":
@@ -58,11 +55,13 @@ def build_model(args):
     elif args.model == "FractalNet":
         model = FractalNet(col=3, channel_list=[64, 128, 256, 512, 512])
     elif args.model == "MLPMixer":
-        model = MLPMixer(hidden_dim=256, patch_size=4, c_hidden=1024, s_hidden=128, depth=8, height=32, width=32, num_classes=10)
+        # model = MLPMixer(hidden_dim=256, patch_size=4, c_hidden=1024, s_hidden=128, depth=8, height=32, width=32, num_classes=10)
+        model = MLPMixer(hidden_dim=128, patch_size=4, c_hidden=256, s_hidden=512, depth=8, height=32, width=32, num_classes=10)
     elif args.model == "ConvMixer":
         model = ConvMixer(hidden_dim=256, depth=16, patch_size=1, kernel_size=8, num_classes=10)
     elif args.model == "ViT":
-        model = VisionTransformer(image_size=(32, 32), hidden_dim=128, num_heads=4, mlp_dim=512, patch_size=4, depth=12, num_classes=10)
+        model = VisionTransformer(image_size=(32, 32), hidden_dim=128, num_heads=4, mlp_dim=256, patch_size=2, depth=8, num_classes=10)
+        # model = VisionTransformer(image_size=(32, 32), hidden_dim=128, num_heads=4, mlp_dim=512, patch_size=4, depth=12, num_classes=10)
     else: 
         print("Check if the model name is correct")
         return  
@@ -120,7 +119,7 @@ def test_loop(dataloader, model, loss_fn, device):
 
 def train_epochs(args, model, trainloader, testloader, loss_fn, optimizer, scheduler, device, restart_epoch=None):
     min_test_loss = 1_000_000
-    writer = SummaryWriter(f'runs/{args.dataset}/models/{args.model}')
+    writer = SummaryWriter(f'runs/{args.dataset}/models/{args.model}_{args.epochs}')
 
     # for graph visualization
     # dataiter = iter(trainloader)

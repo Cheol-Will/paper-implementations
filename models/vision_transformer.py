@@ -17,9 +17,10 @@ class VisionTransformerBlock(nn.Module):
         )
 
     def forward(self, x):
-        out = self.ln1(x)
         # attn_output, attn_output_weights = self.multi_head_attention(out, out, out)
-        out = x + self.multi_head_attention(out, out, out)[0]
+        # out = x + self.multi_head_attention(out, out, out)[0]
+        out = self.ln1(x)
+        out, _ = x + self.multi_head_attention(out, out, out)
         out = out + self.mlp(self.ln2(out))
 
         return out
@@ -31,15 +32,12 @@ class VisionTransformer(nn.Module):
 
         self.patch_embedding = nn.Conv2d(3, hidden_dim, patch_size, patch_size)
         self.cls_token = nn.Parameter(torch.randn(1, 1, hidden_dim))
-        
-        
-        # for cls token add 1 to seq_length
         self.pos_embedding = nn.Parameter(nn.init.normal_(torch.empty(1, height//patch_size * width//patch_size + 1, hidden_dim)))
-        # self.pos_embedding = nn.Parameter(nn.init.normal_(torch.empty(1, height//patch_size * width//patch_size, hidden_dim)))
         self.transformer_blocks = nn.Sequential(
             *[VisionTransformerBlock(hidden_dim, num_heads, mlp_dim) for _ in range(depth)]
         )
         self.clf = nn.Sequential(
+            nn.LayerNorm(hidden_dim),
             nn.Linear(hidden_dim, num_classes)
         )
 
@@ -47,14 +45,12 @@ class VisionTransformer(nn.Module):
         x = self.patch_embedding(x)
         batch_size, hidden_dim, height, width = x.shape
         x = x.reshape(batch_size, hidden_dim, height * width)
-        x = x.transpose(1, 2) # transpose so that shape becomes (batch_size, seq_length, dim_hidden)
+        x = x.transpose(1, 2) # transpose so that shape(and values) becomes (batch_size, seq_length, dim_hidden)
         
         # concat patch_embedding with class token
         cls_token_batched = self.cls_token.expand(batch_size, -1, -1)
         x = torch.concat([cls_token_batched, x], dim=1)
         x += self.pos_embedding
-
-        # transformer blocks
         x = self.transformer_blocks(x)
 
         # use only class token for prediction

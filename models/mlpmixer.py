@@ -5,8 +5,8 @@ import torch.nn.functional as F
 class MixerBlock(nn.Module):
     def __init__(self, hidden_dim, seq_length, c_hidden, s_hidden):
         super(MixerBlock, self).__init__()
+        self.ln = nn.LayerNorm(hidden_dim)
         self.token = nn.Sequential(
-            nn.LayerNorm(seq_length),
             nn.Linear(seq_length, c_hidden),
             nn.GELU(),
             nn.Linear(c_hidden, seq_length)
@@ -19,7 +19,8 @@ class MixerBlock(nn.Module):
         )
 
     def forward(self, x):
-        out = self.token(x.transpose(1, 2))
+        out = self.ln(x)
+        out = self.token(out.transpose(1, 2))
         out = out.transpose(1, 2)
         out = out + x  
         out = self.channel(out) + out
@@ -34,7 +35,7 @@ class MLPMixer(nn.Module):
             *[MixerBlock(hidden_dim, height//patch_size * width//patch_size, c_hidden, s_hidden) for _ in range(depth)]
         )
         self.ln = nn.LayerNorm(hidden_dim)
-        self.clf = nn.Linear(hidden_dim, num_classes)
+        self.clf = nn.Sequential(nn.Linear(hidden_dim, num_classes))
 
     def forward(self, x):
         x = self.patch(x)

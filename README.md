@@ -22,11 +22,11 @@ To resume training from a specific checkpoint, use:
 
 | Model             | Accuracy | Params | GFLOPs | Training Time(hours) | 
 |-------------------|----------|--------|--------|----------------------|
-| ResNet            | 86.66%   | 1.7M   | 0.26   | 2.4                  |
-| PreActResNet      | 86.46%   | 1.7M   | 0.26   | 2.1                  |
-| StochasticDepth   | 81.76%   | 1.4M   | 0.07   | 1.9                  |
-| FractalNet        | 75.68%   | 38M    |        | 2.3                  |
-| DenseNet          | 86.18%   | 1.4M   | 0.33   | 1.7                  |
-| ViT               | 58.78%   | 1.5M   | 0.16   | 1.3                  |
-| MLP-Mixer         | 67.38    | 1.6M   | 0.30   | 1.3                  |
-| ConvMixer         | 91.34%   | 1M     | 1.38   | 5.7                  |
+| ResNet            | 87.60%   | 1.7M   | 0.26   | 2.4                  |
+| PreActResNet      | 87.57%   | 1.7M   | 0.26   | 2.1                  |
+| StochasticDepth   | 82.02%   | 1.4M   | 0.07   | 1.9                  |
+| FractalNet        | 77.34%   | 38M    |        | 2.3                  |
+| DenseNet          | 88.02%   | 1.4M   | 0.33   | 1.7                  |
+| ViT               | 64.43%   | 1.5M   | 0.16   | 1.3                  |
+| MLP-Mixer         | 71.61%   | 1.6M   | 0.30   | 1.3                  |
+| ConvMixer         | 92.25%   | 1M     | 1.38   | 5.7                  |
