@@ -1,4 +1,5 @@
 import argparse, os
+import datetime
 
 import torch
 import torch.nn as nn
@@ -6,6 +7,8 @@ import torchvision
 import torchvision.transforms as transforms
 from torchvision.transforms import v2
 from torch.utils.tensorboard import SummaryWriter
+import numpy as np
+import matplotlib.pyplot as plt
 
 from models.convmixer import ConvMixer, ConvMixerBlock
 from models.densenet import DenseNet, DenseBlock
@@ -16,24 +19,29 @@ from models.stochastic_depth import StDepth, StDepthBlock
 from models.mlpmixer import MLPMixer, MixerBlock
 from models.vision_transformer import VisionTransformer, VisionTransformerBlock
 
-import numpy as np
-import matplotlib.pyplot as plt
+
 
 def build_loader(batch_size):
     # Aug: RandAug, mixup, CutMix, random erasing, gradient clipping, timm
-    transform = transforms.Compose([
+    transform_train = transforms.Compose([
         v2.RandomHorizontalFlip(p=0.5),
         v2.RandAugment(),
         v2.ToTensor(),
         # v2.ToImage(),
         # v2.ToDtype(torch.float32, scale = True),
-        v2.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        v2.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.2023, 0.1994, 0.2010)),
         v2.RandomErasing(),
     ])
+    transform_test = transforms.Compose([
+        v2.ToTensor(),
+        # v2.ToImage(),
+        # v2.ToDtype(torch.float32, scale = True),
+        v2.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.2023, 0.1994, 0.2010)),
+    ])
 
-    trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+    trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
-    testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+    testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
 
     print('Training set has {} instances'.format(len(trainset)))
@@ -55,12 +63,15 @@ def build_model(args):
     elif args.model == "FractalNet":
         model = FractalNet(col=3, channel_list=[64, 128, 256, 512, 512])
     elif args.model == "MLPMixer":
+        model = MLPMixer(image_size=(32, 32), hidden_dim=512, patch_size=4, c_hidden=512*4, s_hidden=256, depth=12, num_classes=10)
         # model = MLPMixer(hidden_dim=256, patch_size=4, c_hidden=1024, s_hidden=128, depth=8, height=32, width=32, num_classes=10)
-        model = MLPMixer(hidden_dim=128, patch_size=4, c_hidden=256, s_hidden=512, depth=8, height=32, width=32, num_classes=10)
+        # model = MLPMixer(image_size=(32, 32), hidden_dim=256, patch_size=4, c_hidden=1024, s_hidden=128, depth=8, num_classes=10)
+    elif args.model == "ViT":
+        model = VisionTransformer(image_size=(32, 32), hidden_dim=192, num_heads=12, mlp_dim=192*4, patch_size=4, depth=12, num_classes=10)
     elif args.model == "ConvMixer":
         model = ConvMixer(hidden_dim=256, depth=16, patch_size=1, kernel_size=8, num_classes=10)
-    elif args.model == "ViT":
-        model = VisionTransformer(image_size=(32, 32), hidden_dim=128, num_heads=4, mlp_dim=256, patch_size=2, depth=8, num_classes=10)
+        # model = VisionTransformer(image_size=(32, 32), hidden_dim=256, num_heads=4, mlp_dim=256, patch_size=4, depth=8, num_classes=10)
+        # model = VisionTransformer(image_size=(32, 32), hidden_dim=128, num_heads=4, mlp_dim=256, patch_size=2, depth=8, num_classes=10)
         # model = VisionTransformer(image_size=(32, 32), hidden_dim=128, num_heads=4, mlp_dim=512, patch_size=4, depth=12, num_classes=10)
     else: 
         print("Check if the model name is correct")
@@ -81,7 +92,7 @@ def train_loop(dataloader, model, loss_fn, optimizer, device, batch_size):
     num_batches = len(dataloader)
     model.train()
     for batch, (X, y) in enumerate(dataloader):
-        X, y = cutmix_or_mixup(X, y)
+        # X, y = cutmix_or_mixup(X, y)2
         X, y = X.to(device), y.to(device)
 
         pred = model(X)
@@ -119,7 +130,10 @@ def test_loop(dataloader, model, loss_fn, device):
 
 def train_epochs(args, model, trainloader, testloader, loss_fn, optimizer, scheduler, device, restart_epoch=None):
     min_test_loss = 1_000_000
-    writer = SummaryWriter(f'runs/{args.dataset}/models/{args.model}_{args.epochs}')
+    now = datetime.datetime.now()
+    timestamp = now.strftime('%Y%m%d')
+    writer = SummaryWriter(f'runs/{args.dataset}/models/{args.model}_{args.epochs}_{timestamp}{args.exp_name}')
+    model_path = os.path.join(args.output_dir, f"{args.dataset}_{args.model}_best_model_{timestamp}{args.exp_name}.pth")
 
     # for graph visualization
     # dataiter = iter(trainloader)
@@ -165,7 +179,6 @@ def train_epochs(args, model, trainloader, testloader, loss_fn, optimizer, sched
                 "scheduler_state_dict": scheduler.state_dict(),
             }
 
-            model_path = os.path.join(args.output_dir, f"{args.dataset}_{args.model}_best_model.pth")
             print(f"save model in {model_path}")
             torch.save(checkpoint, model_path)
 
@@ -191,6 +204,7 @@ def main(args):
 
     loss_fn = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.99), eps=1e-08, weight_decay=1e-4)
+    # optimizer = torch.optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.99), eps=1e-08, weight_decay=5e-5)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=0)
     
     train_epochs(args, model, trainloader, testloader, loss_fn, optimizer, scheduler, device)
@@ -201,7 +215,9 @@ def main(args):
         "optimizer_state_dict": optimizer.state_dict(),
         "scheduler_state_dict": scheduler.state_dict(),
     }
-    torch.save(checkpoint, os.path.join(args.output_dir, f"{args.dataset}_{args.model}_{args.epochs}.pth"))
+    now = datetime.datetime.now()
+    timestamp = now.strftime('%Y%m%d')
+    torch.save(checkpoint, os.path.join(args.output_dir, f"{args.dataset}_{args.model}_{args.epochs}_{timestamp}{args.exp_name}.pth"))
 
     return 
 
@@ -211,6 +227,7 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", default = "cifar-10")
     parser.add_argument("--model", default="ResNet", 
                         choices=["ResNet", "PreActResNet", "DenseNet", "StDepth", "ConvMixer", "MLPMixer", "ViT", "FractalNet"])
+    parser.add_argument("--exp_name", default="")
     parser.add_argument("--batch_size", default=64, type=int)
     parser.add_argument("--epochs", default=100, type=int)
     # parser.add_argument("--restore_from_checkpoint", default=True, type=bool_flag)
