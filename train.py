@@ -3,81 +3,14 @@ import datetime
 
 import torch
 import torch.nn as nn
-import torchvision
-import torchvision.transforms as transforms
 from torchvision.transforms import v2
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import matplotlib.pyplot as plt
 
-from models.convmixer import ConvMixer, ConvMixerBlock
-from models.densenet import DenseNet, DenseBlock
-from models.fractalnet import FractalNet, FractalBlock
-from models.resnet import ResNet, ResBlock
-from models.preactresnet import PreActResNet, PreActResBlock
-from models.stochastic_depth import StDepth, StDepthBlock
-from models.mlpmixer import MLPMixer, MixerBlock
-from models.vision_transformer import VisionTransformer, VisionTransformerBlock
-
-
-
-def build_loader(batch_size):
-    # Aug: RandAug, mixup, CutMix, random erasing, gradient clipping, timm
-    transform_train = transforms.Compose([
-        v2.RandomHorizontalFlip(p=0.5),
-        v2.RandAugment(),
-        v2.ToTensor(),
-        # v2.ToImage(),
-        # v2.ToDtype(torch.float32, scale = True),
-        v2.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.2023, 0.1994, 0.2010)),
-        v2.RandomErasing(),
-    ])
-    transform_test = transforms.Compose([
-        v2.ToTensor(),
-        # v2.ToImage(),
-        # v2.ToDtype(torch.float32, scale = True),
-        v2.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.2023, 0.1994, 0.2010)),
-    ])
-
-    trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
-    testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
-
-    print('Training set has {} instances'.format(len(trainset)))
-    print('Validation set has {} instances'.format(len(testset)))
-
-    return trainloader, testloader
-
-
-def build_model(args):
-
-    if args.model == "ResNet":         
-        model = ResNet(ResBlock, channel_list=[16, 32, 64], num_blocks_list=[18, 18, 18], dataset="cifar-10")
-    elif args.model == "PreActResNet":
-        model = PreActResNet(PreActResBlock, channel_list=[16, 32, 64], num_blocks_list=[18, 18, 18], dataset="cifar-10")
-    elif args.model == "DenseNet":
-        model = DenseNet(DenseBlock, num_blocks_list=[13, 13, 13], growth_rate=12, in_channels=16, compression_rate=1, num_classes=10)
-    elif args.model == "StDepth":
-        model = StDepth(StDepthBlock, channel_list=[16, 32, 64], num_blocks_list=[18, 18, 18], num_classes=10)
-    elif args.model == "FractalNet":
-        model = FractalNet(col=3, channel_list=[64, 128, 256, 512, 512])
-    elif args.model == "MLPMixer":
-        model = MLPMixer(image_size=(32, 32), hidden_dim=512, patch_size=4, c_hidden=512*4, s_hidden=256, depth=12, num_classes=10)
-        # model = MLPMixer(hidden_dim=256, patch_size=4, c_hidden=1024, s_hidden=128, depth=8, height=32, width=32, num_classes=10)
-        # model = MLPMixer(image_size=(32, 32), hidden_dim=256, patch_size=4, c_hidden=1024, s_hidden=128, depth=8, num_classes=10)
-    elif args.model == "ViT":
-        model = VisionTransformer(image_size=(32, 32), hidden_dim=192, num_heads=12, mlp_dim=192*4, patch_size=4, depth=12, num_classes=10)
-    elif args.model == "ConvMixer":
-        model = ConvMixer(hidden_dim=256, depth=16, patch_size=1, kernel_size=8, num_classes=10)
-        # model = VisionTransformer(image_size=(32, 32), hidden_dim=256, num_heads=4, mlp_dim=256, patch_size=4, depth=8, num_classes=10)
-        # model = VisionTransformer(image_size=(32, 32), hidden_dim=128, num_heads=4, mlp_dim=256, patch_size=2, depth=8, num_classes=10)
-        # model = VisionTransformer(image_size=(32, 32), hidden_dim=128, num_heads=4, mlp_dim=512, patch_size=4, depth=12, num_classes=10)
-    else: 
-        print("Check if the model name is correct")
-        return  
-
-    return model
+from dataloader.loader import build_loader
+from models import build_model
+from utils import tensorboard_write
 
 def train_loop(dataloader, model, loss_fn, optimizer, device, batch_size):
     # extract num_classes from nn.Linear()
@@ -92,7 +25,7 @@ def train_loop(dataloader, model, loss_fn, optimizer, device, batch_size):
     num_batches = len(dataloader)
     model.train()
     for batch, (X, y) in enumerate(dataloader):
-        # X, y = cutmix_or_mixup(X, y)2
+        # X, y = cutmix_or_mixup(X, y)
         X, y = X.to(device), y.to(device)
 
         pred = model(X)
@@ -134,12 +67,6 @@ def train_epochs(args, model, trainloader, testloader, loss_fn, optimizer, sched
     timestamp = now.strftime('%Y%m%d')
     writer = SummaryWriter(f'runs/{args.dataset}/models/{args.model}_{args.epochs}_{timestamp}{args.exp_name}')
     model_path = os.path.join(args.output_dir, f"{args.dataset}_{args.model}_best_model_{timestamp}{args.exp_name}.pth")
-
-    # for graph visualization
-    # dataiter = iter(trainloader)
-    # images, labels = next(dataiter)
-    # images, labels = images.to(device), labels.to(device)
-    # writer.add_graph(model, images)
 
     # restore checkpoint to keep training
     if args.checkpoint_start_from is not None:
@@ -184,9 +111,7 @@ def train_epochs(args, model, trainloader, testloader, loss_fn, optimizer, sched
 
         # write Accuracy and Loss
         n_iter = epoch * len(trainloader)
-        writer.add_scalar(f"Acc", correct, n_iter)
-        writer.add_scalar(f"Loss", test_loss, n_iter)
-        writer.add_scalar(f"Train_Loss", avg_loss, n_iter)
+        tensorboard_write(writer, n_iter, correct, test_loss, avg_loss)
     
         if epoch % 10 == 9:
             writer.flush()
@@ -196,7 +121,8 @@ def train_epochs(args, model, trainloader, testloader, loss_fn, optimizer, sched
 def main(args):
     if not os.path.isdir(args.output_dir):
         print(f'Output directory {args.output_dir} does not exist; creating it')
-
+        os.makedirs(args.output_dir, exist_ok=True)
+        
     trainloader, testloader = build_loader(args.batch_size)
     model = build_model(args)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -204,7 +130,6 @@ def main(args):
 
     loss_fn = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.99), eps=1e-08, weight_decay=1e-4)
-    # optimizer = torch.optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.99), eps=1e-08, weight_decay=5e-5)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=0)
     
     train_epochs(args, model, trainloader, testloader, loss_fn, optimizer, scheduler, device)
