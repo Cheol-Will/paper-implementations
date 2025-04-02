@@ -3,6 +3,8 @@ import datetime
 
 import torch
 import torch.nn as nn
+import torchvision
+import torchvision.transforms as transforms
 from torchvision.transforms import v2
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
@@ -10,7 +12,7 @@ import matplotlib.pyplot as plt
 
 from dataloader.loader import build_loader
 from models import build_model
-from utils import tensorboard_write
+from utils import tensorboard_write, count_parameters
 
 def train_loop(dataloader, model, loss_fn, optimizer, device, batch_size):
     # extract num_classes from nn.Linear()
@@ -125,6 +127,7 @@ def main(args):
         
     trainloader, testloader = build_loader(args.batch_size)
     model = build_model(args)
+    print(f"The Number of Parameters: {count_parameters(model)}")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)  
 
